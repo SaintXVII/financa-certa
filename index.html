@@ -797,7 +797,36 @@ function renderRelatorio(){
 }
 
 document.querySelectorAll('.modal-overlay').forEach(el=>el.addEventListener('click',e=>{if(e.target===el){closeModal();closeGoalModal();closeNameModal();}}));
-if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));}
+if('serviceWorker' in navigator){
+  window.addEventListener('load', async () => {
+    try {
+      const reg = await navigator.serviceWorker.register('sw.js');
+      
+      // Verifica atualização imediatamente
+      reg.update();
+      
+      // Quando nova versão é encontrada, aplica automaticamente
+      reg.addEventListener('updatefound', () => {
+        const newWorker = reg.installing;
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            // Nova versão disponível — força atualização silenciosa
+            newWorker.postMessage('skipWaiting');
+          }
+        });
+      });
+      
+      // Quando SW assume controle, recarrega a página
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!refreshing) {
+          refreshing = true;
+          window.location.reload();
+        }
+      });
+    } catch(e) {}
+  });
+}
 
 checkActivation();
 </script>
