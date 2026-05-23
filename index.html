@@ -585,11 +585,36 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
     <!-- PAGE: RELATÓRIO -->
     <div class="page" id="page-relatorio">
       <div class="mob-header">
-        <div><div class="mob-logo">Relatório</div><div class="mob-greeting">Visão anual</div></div>
+        <div><div class="mob-logo">Relatório</div><div class="mob-greeting" id="reportPeriodLabel">Selecione um período</div></div>
       </div>
       <div class="desk-header">
-        <div><div class="desk-page-title">Relatório anual</div><div class="desk-page-sub" id="reportYear"></div></div>
+        <div><div class="desk-page-title">Relatório</div><div class="desk-page-sub" id="reportPeriodLabelDesk">Selecione um período</div></div>
       </div>
+
+      <div class="section" style="margin-top:16px;">
+        <div class="section-title">Período</div>
+        <div class="filter-scroll" id="periodTabs">
+          <button class="filter-chip active" onclick="setPeriod('7d',this)">7 dias</button>
+          <button class="filter-chip" onclick="setPeriod('30d',this)">30 dias</button>
+          <button class="filter-chip" onclick="setPeriod('3m',this)">3 meses</button>
+          <button class="filter-chip" onclick="setPeriod('6m',this)">6 meses</button>
+          <button class="filter-chip" onclick="setPeriod('1y',this)">Este ano</button>
+          <button class="filter-chip" onclick="setPeriod('custom',this)">Personalizado</button>
+        </div>
+        <div id="customDateWrap" style="display:none;margin-top:12px;">
+          <div class="form-row">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Data início</label>
+              <input class="form-input" id="reportDateStart" type="date" onchange="renderRelatorio()">
+            </div>
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Data fim</label>
+              <input class="form-input" id="reportDateEnd" type="date" onchange="renderRelatorio()">
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="section" style="margin-top:16px;">
         <div class="section-title">Receitas vs Despesas</div>
         <div class="card">
@@ -600,12 +625,14 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
           </div>
         </div>
       </div>
+
       <div class="section" style="margin-top:16px;">
-        <div class="section-title">Fechamento anual</div>
+        <div class="section-title">Resumo do período</div>
         <div class="stats-grid" id="annualStats"></div>
       </div>
+
       <div class="section" style="margin-top:16px;">
-        <div class="section-title">Desp. variáveis por categoria (ano)</div>
+        <div class="section-title">Desp. variáveis por categoria</div>
         <div class="card"><div class="cat-list" id="annualCats"><div class="empty"><div class="empty-icon">📊</div><p>Sem dados ainda</p></div></div></div>
       </div>
       <div style="height:16px;"></div>
@@ -709,6 +736,71 @@ const CAT_EMOJIS={'Mercado':'🛒','Restaurante':'🍽️','Lazer':'🎉','Saúd
 const CAT_COLORS=['#22c55e','#3b82f6','#eab308','#ef4444','#a855f7','#f97316'];
 
 let state={transactions:[],goals:[],userName:'',viewYear:new Date().getFullYear(),viewMonth:new Date().getMonth(),currentType:'receita'};
+let reportPeriod='7d';
+
+function setPeriod(period, btn){
+  reportPeriod=period;
+  document.querySelectorAll('#periodTabs .filter-chip').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  const customWrap=document.getElementById('customDateWrap');
+  if(period==='custom'){
+    customWrap.style.display='block';
+    // Set default dates if empty
+    const now=new Date();
+    const start=document.getElementById('reportDateStart');
+    const end=document.getElementById('reportDateEnd');
+    if(!start.value){
+      const d=new Date(); d.setMonth(d.getMonth()-1);
+      start.value=d.toISOString().split('T')[0];
+    }
+    if(!end.value) end.value=now.toISOString().split('T')[0];
+  } else {
+    customWrap.style.display='none';
+  }
+  renderRelatorio();
+}
+
+function getPeriodDates(){
+  const now=new Date();
+  let start, end=new Date();
+  if(reportPeriod==='7d'){
+    start=new Date(); start.setDate(start.getDate()-6);
+  } else if(reportPeriod==='30d'){
+    start=new Date(); start.setDate(start.getDate()-29);
+  } else if(reportPeriod==='3m'){
+    start=new Date(); start.setMonth(start.getMonth()-3);
+  } else if(reportPeriod==='6m'){
+    start=new Date(); start.setMonth(start.getMonth()-6);
+  } else if(reportPeriod==='1y'){
+    start=new Date(now.getFullYear(),0,1);
+    end=new Date(now.getFullYear(),11,31);
+  } else if(reportPeriod==='custom'){
+    const s=document.getElementById('reportDateStart')?.value;
+    const e=document.getElementById('reportDateEnd')?.value;
+    start=s?new Date(s+'T00:00:00'):new Date();
+    end=e?new Date(e+'T23:59:59'):new Date();
+  }
+  return {start, end};
+}
+
+function getPeriodLabel(){
+  const labels={'7d':'Últimos 7 dias','30d':'Últimos 30 dias','3m':'Últimos 3 meses','6m':'Últimos 6 meses','1y':'Este ano'};
+  if(reportPeriod==='custom'){
+    const s=document.getElementById('reportDateStart')?.value;
+    const e=document.getElementById('reportDateEnd')?.value;
+    if(s&&e) return `${new Date(s+'T12:00:00').toLocaleDateString('pt-BR')} até ${new Date(e+'T12:00:00').toLocaleDateString('pt-BR')}`;
+    return 'Período personalizado';
+  }
+  return labels[reportPeriod]||'';
+}
+
+function getTxInPeriod(){
+  const {start,end}=getPeriodDates();
+  return state.transactions.filter(t=>{
+    const d=new Date(t.date+'T12:00:00');
+    return d>=start && d<=end;
+  });
+}
 let currentFilter='all';let editingGoalId=null;let deferredInstall=null;
 
 function load(){try{const t=localStorage.getItem('fc_tx');const g=localStorage.getItem('fc_goals');const n=localStorage.getItem('fc_name');if(t)state.transactions=JSON.parse(t);if(g)state.goals=JSON.parse(g);if(n)state.userName=n;}catch(e){}}
@@ -895,14 +987,77 @@ function renderGoals(){
 }
 
 function renderRelatorio(){
-  const year=state.viewYear;const months=Array.from({length:12},(_,i)=>i);
-  const md=months.map(m=>{const txs=getMonthTx(year,m);return{m,...calcSums(txs)};});
-  const maxVal=Math.max(...md.map(d=>Math.max(d.receitas,d.totalDespesas)),1);
-  document.getElementById('chartBars').innerHTML=md.map(d=>{const ih=((d.receitas/maxVal)*100).toFixed(0);const eh=((d.totalDespesas/maxVal)*100).toFixed(0);return`<div class="chart-bar-group"><div class="chart-bars-inner"><div class="chart-bar income" style="height:${ih}%"></div><div class="chart-bar expense" style="height:${eh}%"></div></div><div class="chart-month-label">${shortMonth(d.m)}</div></div>`;}).join('');
-  const ann=md.reduce((a,d)=>{a.receitas+=d.receitas;a.despesas+=d.totalDespesas;a.invest+=d.investimentos;a.saldo+=d.saldo;return a;},{receitas:0,despesas:0,invest:0,saldo:0});
-  document.getElementById('annualStats').innerHTML=`<div class="stat-card"><div class="stat-label">Receitas ${year}</div><div class="stat-value green">${fmt(ann.receitas)}</div></div><div class="stat-card"><div class="stat-label">Despesas ${year}</div><div class="stat-value red">${fmt(ann.despesas)}</div></div><div class="stat-card"><div class="stat-label">Investimentos</div><div class="stat-value blue">${fmt(ann.invest)}</div></div><div class="stat-card"><div class="stat-label">Saldo anual</div><div class="stat-value ${ann.saldo>=0?'green':'red'}">${fmt(ann.saldo)}</div></div>`;
-  const allTxs=state.transactions.filter(t=>new Date(t.date+'T12:00:00').getFullYear()===year);const varTxs=allTxs.filter(t=>t.type==='despesa_variavel');const catMap={};varTxs.forEach(t=>{if(!catMap[t.category])catMap[t.category]=0;catMap[t.category]+=t.amount;});
-  const cats=Object.entries(catMap).sort((a,b)=>b[1]-a[1]).slice(0,6);const maxC=cats.length?cats[0][1]:1;
+  // Update period label
+  const label=getPeriodLabel();
+  const pl=document.getElementById('reportPeriodLabel');
+  const pld=document.getElementById('reportPeriodLabelDesk');
+  if(pl)pl.textContent=label;
+  if(pld)pld.textContent=label;
+
+  const txs=getTxInPeriod();
+  const {start,end}=getPeriodDates();
+
+  // Group by month for chart
+  const monthMap={};
+  txs.forEach(t=>{
+    const d=new Date(t.date+'T12:00:00');
+    const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    if(!monthMap[key])monthMap[key]={label:shortMonth(d.getMonth())+'/'+String(d.getFullYear()).slice(2),receitas:0,despesas:0};
+    if(t.type==='receita')monthMap[key].receitas+=t.amount;
+    else if(t.type==='despesa_fixa'||t.type==='despesa_variavel')monthMap[key].despesas+=t.amount;
+  });
+
+  // For 7d/30d group by day instead
+  let chartData=[];
+  if(reportPeriod==='7d'||reportPeriod==='30d'){
+    const dayMap={};
+    const days=reportPeriod==='7d'?7:30;
+    for(let i=days-1;i>=0;i--){
+      const d=new Date(); d.setDate(d.getDate()-i);
+      const key=d.toISOString().split('T')[0];
+      const lbl=`${d.getDate()}/${d.getMonth()+1}`;
+      dayMap[key]={label:lbl,receitas:0,despesas:0};
+    }
+    txs.forEach(t=>{
+      if(dayMap[t.date]){
+        if(t.type==='receita')dayMap[t.date].receitas+=t.amount;
+        else if(t.type==='despesa_fixa'||t.type==='despesa_variavel')dayMap[t.date].despesas+=t.amount;
+      }
+    });
+    chartData=Object.values(dayMap);
+  } else {
+    chartData=Object.keys(monthMap).sort().map(k=>monthMap[k]);
+  }
+
+  // Render chart
+  const maxVal=Math.max(...chartData.map(d=>Math.max(d.receitas,d.despesas)),1);
+  const barsEl=document.getElementById('chartBars');
+  if(!chartData.length){
+    barsEl.innerHTML='<div class="empty" style="width:100%;"><div class="empty-icon">📊</div><p>Sem dados neste período</p></div>';
+  } else {
+    // Show max 12 bars to avoid crowding
+    const show=chartData.length>12?chartData.slice(-12):chartData;
+    barsEl.innerHTML=show.map(d=>{
+      const ih=((d.receitas/maxVal)*100).toFixed(0);
+      const eh=((d.despesas/maxVal)*100).toFixed(0);
+      return`<div class="chart-bar-group"><div class="chart-bars-inner"><div class="chart-bar income" style="height:${ih}%"></div><div class="chart-bar expense" style="height:${eh}%"></div></div><div class="chart-month-label">${d.label}</div></div>`;
+    }).join('');
+  }
+
+  // Summary
+  const s=calcSums(txs);
+  document.getElementById('annualStats').innerHTML=`
+    <div class="stat-card"><div class="stat-label">Receitas</div><div class="stat-value green">${fmt(s.receitas)}</div></div>
+    <div class="stat-card"><div class="stat-label">Despesas</div><div class="stat-value red">${fmt(s.totalDespesas)}</div></div>
+    <div class="stat-card"><div class="stat-label">Investimentos</div><div class="stat-value blue">${fmt(s.investimentos)}</div></div>
+    <div class="stat-card"><div class="stat-label">Saldo</div><div class="stat-value ${s.saldo>=0?'green':'red'}">${fmt(s.saldo)}</div></div>`;
+
+  // Categories
+  const varTxs=txs.filter(t=>t.type==='despesa_variavel');
+  const catMap={};
+  varTxs.forEach(t=>{if(!catMap[t.category])catMap[t.category]=0;catMap[t.category]+=t.amount;});
+  const cats=Object.entries(catMap).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const maxC=cats.length?cats[0][1]:1;
   const ac=document.getElementById('annualCats');
   if(!cats.length)ac.innerHTML='<div class="empty"><div class="empty-icon">📊</div><p>Sem dados ainda</p></div>';
   else ac.innerHTML=cats.map(([name,total],i)=>`<div class="cat-item"><div class="cat-icon" style="background:${CAT_COLORS[i]}22;">${CAT_EMOJIS[name]||'📦'}</div><div class="cat-info"><div class="cat-name">${name}</div><div class="cat-bar-wrap"><div class="cat-bar" style="width:${(total/maxC*100).toFixed(0)}%;background:${CAT_COLORS[i]};height:100%;border-radius:100px;"></div></div></div><div class="cat-amount" style="color:${CAT_COLORS[i]}">${fmt(total)}</div></div>`).join('');
