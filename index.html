@@ -691,8 +691,9 @@ document.getElementById('activationInput').addEventListener('keydown',e=>{if(e.k
 
 function showApp(){
   document.getElementById('activationScreen').style.display='none';
-  // Se já instalou antes, vai direto pro app
-  if(localStorage.getItem('fc_install_shown')){
+  // Se já viu a tela OU se já tá rodando como PWA instalado, vai direto
+  const isInstalled = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+  if(localStorage.getItem('fc_install_shown') || isInstalled){
     document.getElementById('appShell').style.display='flex';
     load();renderAll();renderInstallBanner();
   } else {
