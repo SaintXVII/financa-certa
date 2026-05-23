@@ -279,6 +279,13 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .install-banner-sub{font-size:11px;color:var(--text2);margin-top:1px;}
 .install-banner-btn{padding:6px 14px;background:var(--green);color:#fff;border:none;border-radius:6px;font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;}
 .install-banner-close{width:24px;height:24px;background:transparent;border:none;color:var(--text3);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.update-banner{margin:12px 20px 0;background:var(--blue-bg);border:1px solid rgba(59,130,246,.25);border-radius:var(--radius-sm);padding:12px 14px;display:flex;align-items:center;gap:12px;animation:fadeIn .3s ease;}
+.update-banner-text{flex:1;}
+.update-banner-title{font-size:13px;font-weight:700;color:var(--blue);}
+.update-banner-sub{font-size:11px;color:var(--text2);margin-top:1px;}
+.update-banner-btn{padding:6px 14px;background:var(--blue);color:#fff;border:none;border-radius:6px;font-family:var(--font);font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all var(--tr);}
+.update-banner-btn:hover{background:#2563eb;}
+.update-banner-close{width:24px;height:24px;background:transparent;border:none;color:var(--text3);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 
 /* ── INSTALL WELCOME SCREEN ── */
 #installWelcome{
@@ -486,6 +493,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         <button class="btn-ghost" onclick="openModal()">+ Novo lançamento</button>
       </div>
       <div id="installBannerWrap"></div>
+      <div id="updateBannerWrap"></div>
       <div class="month-nav">
         <button class="month-btn" onclick="changeMonth(-1)">‹</button>
         <span class="month-label" id="monthLabel"></span>
@@ -1095,7 +1103,79 @@ if('serviceWorker' in navigator){
   });
 }
 
+// ── VERSION CHECK ───────────────────────────────────────────
+const APP_VERSION = '1.0.0';
+const VERSION_URL = 'https://saintxvii.github.io/financa-certa/version.json';
+
+function compareVersions(a, b){
+  const pa=a.split('.').map(Number);
+  const pb=b.split('.').map(Number);
+  for(let i=0;i<3;i++){
+    if((pa[i]||0)>(pb[i]||0))return 1;
+    if((pa[i]||0)<(pb[i]||0))return -1;
+  }
+  return 0;
+}
+
+async function checkForUpdates(){
+  try {
+    const lastCheck = localStorage.getItem('fc_last_update_check');
+    const now = Date.now();
+    // Checa uma vez por dia no máximo
+    if(lastCheck && now - parseInt(lastCheck) < 86400000) return;
+    localStorage.setItem('fc_last_update_check', now.toString());
+
+    const res = await fetch(VERSION_URL + '?t=' + now);
+    const data = await res.json();
+    const latest = data.version;
+    const changelog = data.changelog || '';
+
+    if(compareVersions(latest, APP_VERSION) > 0){
+      // Tem atualização!
+      const dismissed = localStorage.getItem('fc_dismissed_version');
+      if(dismissed === latest) return; // Usuário já dispensou essa versão
+      renderUpdateBanner(latest, changelog);
+    }
+  } catch(e){}
+}
+
+function renderUpdateBanner(version, changelog){
+  const wrap = document.getElementById('updateBannerWrap');
+  if(!wrap) return;
+  wrap.innerHTML = `<div class="update-banner">
+    <div style="font-size:22px;">🎉</div>
+    <div class="update-banner-text">
+      <div class="update-banner-title">Atualização disponível — v${version}</div>
+      <div class="update-banner-sub">${changelog || 'Melhorias e correções disponíveis'}</div>
+    </div>
+    <button class="update-banner-btn" onclick="doUpdate()">Atualizar</button>
+    <button class="update-banner-close" onclick="dismissUpdate('${version}')">×</button>
+  </div>`;
+}
+
+function doUpdate(){
+  // Limpa cache do service worker e recarrega
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.getRegistrations().then(regs=>{
+      regs.forEach(r=>r.unregister());
+      caches.keys().then(keys=>Promise.all(keys.map(k=>caches.delete(k)))).then(()=>{
+        window.location.reload(true);
+      });
+    });
+  } else {
+    window.location.reload(true);
+  }
+}
+
+function dismissUpdate(version){
+  localStorage.setItem('fc_dismissed_version', version);
+  const wrap = document.getElementById('updateBannerWrap');
+  if(wrap) wrap.innerHTML = '';
+}
+
 checkActivation();
+// Checa atualizações após 3 segundos (pra não atrasar o carregamento)
+setTimeout(checkForUpdates, 3000);
 </script>
 </body>
 </html>
