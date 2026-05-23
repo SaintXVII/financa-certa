@@ -416,7 +416,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">Descrição</label>
+            <label class="form-label">Descrição <span style="color:var(--text3);font-weight:400;">(opcional)</span></label>
             <input class="form-input" id="formDesc" type="text" placeholder="Ex: Salário, Mercado..." autocomplete="off">
           </div>
           <div class="form-group">
@@ -427,12 +427,16 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Categoria</label>
-            <select class="form-select" id="formCategory"></select>
+            <select class="form-select" id="formCategory" onchange="showDetailField()"></select>
           </div>
           <div class="form-group">
             <label class="form-label">Data</label>
             <input class="form-input" id="formDate" type="date">
           </div>
+        </div>
+        <div class="form-group" id="detailFieldWrap" style="display:none;">
+          <label class="form-label">Detalhar categoria <span style="color:var(--text3);font-weight:400;">(opcional)</span></label>
+          <input class="form-input" id="formDetail" type="text" placeholder="Ex: conta de luz, academia, passagem...">
         </div>
         <div style="margin-top:4px;"><button class="btn-primary" onclick="saveTransaction()">Salvar lançamento</button></div>
       </div>
@@ -822,14 +826,39 @@ function calcSums(txs){let r=0,df=0,dv=0,inv=0;txs.forEach(t=>{if(t.type==='rece
 function showPage(name,btn){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('.nav-btn,.sidebar-btn').forEach(b=>b.classList.remove('active'));document.getElementById('page-'+name).classList.add('active');document.querySelectorAll('.nav-btn,.sidebar-btn').forEach(b=>{if(b.onclick&&b.onclick.toString().includes("'"+name+"'"))b.classList.add('active');});renderAll();}
 function changeMonth(dir){state.viewMonth+=dir;if(state.viewMonth>11){state.viewMonth=0;state.viewYear++;}if(state.viewMonth<0){state.viewMonth=11;state.viewYear--;}renderAll();}
 
-function openModal(){setType('receita',document.querySelector('.type-tab'));document.getElementById('formDesc').value='';document.getElementById('formAmount').value='';document.getElementById('formDate').value=new Date().toISOString().split('T')[0];document.getElementById('addModal').classList.add('open');}
+function openModal(){
+  setType('receita',document.querySelector('.type-tab'));
+  document.getElementById('formDesc').value='';
+  document.getElementById('formAmount').value='';
+  document.getElementById('formDate').value=new Date().toISOString().split('T')[0];
+  const dfw=document.getElementById('detailFieldWrap');
+  const df=document.getElementById('formDetail');
+  if(dfw)dfw.style.display='none';
+  if(df)df.value='';
+  document.getElementById('addModal').classList.add('open');
+}
 function closeModal(){document.getElementById('addModal').classList.remove('open');}
 function openGoalModal(id){editingGoalId=id;const g=id?state.goals.find(g=>g.id===id):null;document.getElementById('goalModalTitle').textContent=g?'Editar meta':'Nova meta';document.getElementById('goalName').value=g?g.name:'';document.getElementById('goalEmoji').value=g?g.emoji:'';document.getElementById('goalTarget').value=g?g.target:'';document.getElementById('goalCurrent').value=g?g.current:'';document.getElementById('goalModal').classList.add('open');}
 function closeGoalModal(){document.getElementById('goalModal').classList.remove('open');editingGoalId=null;}
 function openNameModal(){document.getElementById('userName').value=state.userName;document.getElementById('nameModal').classList.add('open');}
 function closeNameModal(){document.getElementById('nameModal').classList.remove('open');}
+function showDetailField(){
+  const wrap = document.getElementById('detailFieldWrap');
+  if(wrap) wrap.style.display = 'block';
+}
+
 function setType(type,btn){state.currentType=type;const types=['receita','despesa_fixa','despesa_variavel','investimento'];document.querySelectorAll('.type-tab').forEach((b,i)=>{b.className='type-tab';if(types[i]===type)b.classList.add('active-'+type);});const sel=document.getElementById('formCategory');sel.innerHTML=CATEGORIES[type].map(c=>`<option value="${c}">${c}</option>`).join('');}
-function saveTransaction(){const desc=document.getElementById('formDesc').value.trim();const amount=parseFloat(document.getElementById('formAmount').value);const category=document.getElementById('formCategory').value;const date=document.getElementById('formDate').value;if(!desc||!amount||amount<=0||!date){showToast('Preencha todos os campos ✦');return;}state.transactions.push({id:Date.now().toString(),type:state.currentType,description:desc,amount,category,date});save();closeModal();showToast('Lançamento salvo ✓');renderAll();}
+function saveTransaction(){
+  const desc=document.getElementById('formDesc').value.trim();
+  const amount=parseFloat(document.getElementById('formAmount').value);
+  const category=document.getElementById('formCategory').value;
+  const date=document.getElementById('formDate').value;
+  const detail=document.getElementById('formDetail')?.value.trim()||'';
+  if(!amount||amount<=0||!date){showToast('Preencha o valor e a data ✦');return;}
+  const finalDesc = desc || (detail ? detail : category);
+  state.transactions.push({id:Date.now().toString(),type:state.currentType,description:finalDesc,detail,amount,category,date});
+  save();closeModal();showToast('Lançamento salvo ✓');renderAll();
+}
 function deleteTransaction(id){if(!confirm('Remover este lançamento?'))return;state.transactions=state.transactions.filter(t=>t.id!==id);save();renderAll();showToast('Removido ✓');}
 function saveGoal(){const name=document.getElementById('goalName').value.trim();const emoji=document.getElementById('goalEmoji').value.trim()||'🎯';const target=parseFloat(document.getElementById('goalTarget').value)||0;const current=parseFloat(document.getElementById('goalCurrent').value)||0;if(!name){showToast('Digite o nome da meta ✦');return;}if(editingGoalId){const idx=state.goals.findIndex(g=>g.id===editingGoalId);if(idx>-1)state.goals[idx]={...state.goals[idx],name,emoji,target,current};}else{state.goals.push({id:Date.now().toString(),name,emoji,target,current});}save();closeGoalModal();renderGoals();showToast(editingGoalId?'Meta atualizada ✓':'Meta criada ✓');}
 function deleteGoal(id){if(!confirm('Remover esta meta?'))return;state.goals=state.goals.filter(g=>g.id!==id);save();renderGoals();showToast('Meta removida ✓');}
@@ -985,7 +1014,7 @@ function renderLancamentos(){
   else tbody.innerHTML=txs.map(t=>{const d=new Date(t.date+'T12:00:00');const ds=d.toLocaleDateString('pt-BR',{day:'2-digit',month:'short',year:'numeric'});const sign=t.type==='receita'?'+':'-';return`<tr><td><span class="tx-type-badge ${t.type}">${TYPE_LABELS[t.type]}</span></td><td style="font-weight:600;">${t.description}</td><td style="color:var(--text2);">${t.category}</td><td style="color:var(--text2);">${ds}</td><td style="text-align:right;font-family:var(--mono);font-weight:700;" class="tx-amount ${t.type}">${sign}${fmt(t.amount)}</td><td style="text-align:right;"><button class="tx-delete-btn" onclick="deleteTransaction('${t.id}')">✕</button></td></tr>`;}).join('');
   const el=document.getElementById('txList');
   if(!txs.length){el.innerHTML='<div class="empty"><div class="empty-icon">💸</div><p>Nenhum lançamento neste período</p></div>';return;}
-  el.innerHTML=txs.map(t=>{const d=new Date(t.date+'T12:00:00');const ds=d.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});const sign=t.type==='receita'?'+':'-';return`<div class="tx-item"><div class="tx-dot ${t.type}"></div><div class="tx-info"><div class="tx-desc">${t.description}</div><div class="tx-meta">${TYPE_LABELS[t.type]} · ${t.category} · ${ds}</div></div><div class="tx-amount ${t.type}">${sign}${fmt(t.amount)}</div><button class="tx-delete-btn" onclick="deleteTransaction('${t.id}')">✕</button></div>`;}).join('');
+  el.innerHTML=txs.map(t=>{const d=new Date(t.date+'T12:00:00');const ds=d.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});const sign=t.type==='receita'?'+':'-';return`<div class="tx-item"><div class="tx-dot ${t.type}"></div><div class="tx-info"><div class="tx-desc">${t.description}</div><div class="tx-meta">${TYPE_LABELS[t.type]} · ${t.category}${t.detail?' · '+t.detail:''} · ${ds}</div></div><div class="tx-amount ${t.type}">${sign}${fmt(t.amount)}</div><button class="tx-delete-btn" onclick="deleteTransaction('${t.id}')">✕</button></div>`;}).join('');
 }
 
 function renderGoals(){
