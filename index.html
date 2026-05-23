@@ -248,15 +248,28 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .budget-tag{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:100px;font-size:12px;font-weight:700;}
 .budget-tag.ok{background:var(--green-bg);color:var(--green);}
 .budget-tag.over{background:var(--red-bg);color:var(--red);}
-.chart-wrap{position:relative;width:100%;height:200px;}
-.chart-bars{display:flex;align-items:flex-end;gap:4px;height:calc(100% - 20px);padding:0 4px;}
-.chart-bar-group{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;max-width:60px;}
-.chart-bars-inner{display:flex;gap:2px;align-items:flex-end;flex:1;width:100%;}
-.chart-bar{flex:1;border-radius:4px 4px 0 0;min-height:2px;transition:height .5s cubic-bezier(.4,0,.2,1);max-width:24px;}
-.chart-bar.income{background:var(--green);opacity:.85;}.chart-bar.expense{background:var(--red);opacity:.75;}
-.chart-month-label{font-size:9px;color:var(--text3);font-weight:600;letter-spacing:.05em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
-.chart-container{display:flex;flex-direction:column;height:200px;}
-.chart-bars-wrap{flex:1;display:flex;align-items:flex-end;gap:4px;padding:0 4px;overflow:hidden;}
+.chart-wrap{position:relative;width:100%;height:220px;padding-bottom:20px;}
+.chart-grid{position:absolute;top:0;left:0;right:0;bottom:20px;display:flex;flex-direction:column;justify-content:space-between;pointer-events:none;}
+.chart-grid-line{width:100%;height:1px;background:var(--border);}
+.chart-bars{display:flex;align-items:flex-end;gap:3px;height:calc(100% - 20px);padding:0;position:relative;z-index:1;}
+.chart-bar-group{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px;height:100%;cursor:pointer;position:relative;}
+.chart-bar-group:hover .chart-tooltip{display:flex;}
+.chart-bars-inner{display:flex;gap:2px;align-items:flex-end;flex:1;width:100%;padding:0 1px;}
+.chart-bar{flex:1;border-radius:3px 3px 0 0;min-height:2px;transition:height .4s cubic-bezier(.4,0,.2,1);position:relative;}
+.chart-bar.income{background:#22c55e;}.chart-bar.expense{background:#ef4444;}
+.chart-bar-group:hover .chart-bar.income{background:#16a34a;}
+.chart-bar-group:hover .chart-bar.expense{background:#dc2626;}
+.chart-month-label{font-size:8px;color:var(--text3);font-weight:500;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-align:center;max-width:100%;position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);}
+.chart-tooltip{
+  display:none;position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);
+  background:var(--bg2);border:1px solid var(--border2);border-radius:8px;
+  padding:8px 10px;white-space:nowrap;z-index:10;
+  flex-direction:column;gap:3px;min-width:100px;
+  box-shadow:0 4px 16px rgba(0,0,0,.3);
+}
+.chart-tooltip-label{font-size:10px;color:var(--text3);font-weight:600;margin-bottom:2px;}
+.chart-tooltip-row{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;}
+.chart-tooltip-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
 .chart-legend{display:flex;gap:14px;justify-content:center;margin-top:12px;}
 .chart-legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--text2);}
 .chart-legend-dot{width:8px;height:8px;border-radius:2px;}
@@ -608,8 +621,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
       <div class="section" style="margin-top:16px;">
         <div class="section-title">Período</div>
         <div class="filter-scroll" id="periodTabs">
-          <button class="filter-chip active" onclick="setPeriod('7d',this)">7 dias</button>
-          <button class="filter-chip" onclick="setPeriod('30d',this)">30 dias</button>
+          <button class="filter-chip active" onclick="setPeriod('7d',this)">Esta semana</button>
+          <button class="filter-chip" onclick="setPeriod('30d',this)">Este mês</button>
           <button class="filter-chip" onclick="setPeriod('3m',this)">3 meses</button>
           <button class="filter-chip" onclick="setPeriod('6m',this)">6 meses</button>
           <button class="filter-chip" onclick="setPeriod('1y',this)">Este ano</button>
@@ -626,16 +639,32 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
               <input class="form-input" id="reportDateEnd" type="date" onchange="renderRelatorio()">
             </div>
           </div>
+          <div style="margin-top:10px;">
+            <label class="form-label">Agrupar por</label>
+            <div class="filter-scroll" id="groupTabs">
+              <button class="filter-chip" onclick="setGroup('dias',this)">Dias</button>
+              <button class="filter-chip active" onclick="setGroup('meses',this)">Meses</button>
+              <button class="filter-chip" onclick="setGroup('semanas',this)">Semanas</button>
+            </div>
+          </div>
         </div>
       </div>
 
       <div class="section" style="margin-top:16px;">
         <div class="section-title">Receitas vs Despesas</div>
-        <div class="card">
-          <div class="chart-wrap"><div class="chart-bars" id="chartBars"></div></div>
-          <div class="chart-legend">
-            <div class="chart-legend-item"><div class="chart-legend-dot" style="background:var(--green)"></div>Receitas</div>
-            <div class="chart-legend-item"><div class="chart-legend-dot" style="background:var(--red)"></div>Despesas</div>
+        <div class="card" style="padding:20px 20px 28px;">
+          <div class="chart-wrap">
+            <div class="chart-grid">
+              <div class="chart-grid-line"></div>
+              <div class="chart-grid-line"></div>
+              <div class="chart-grid-line"></div>
+              <div class="chart-grid-line"></div>
+            </div>
+            <div class="chart-bars" id="chartBars"></div>
+          </div>
+          <div class="chart-legend" style="margin-top:24px;">
+            <div class="chart-legend-item"><div class="chart-legend-dot" style="background:#22c55e;border-radius:2px;"></div>Receitas</div>
+            <div class="chart-legend-item"><div class="chart-legend-dot" style="background:#ef4444;border-radius:2px;"></div>Despesas</div>
           </div>
         </div>
       </div>
@@ -751,6 +780,14 @@ const CAT_COLORS=['#22c55e','#3b82f6','#eab308','#ef4444','#a855f7','#f97316'];
 
 let state={transactions:[],goals:[],userName:'',viewYear:new Date().getFullYear(),viewMonth:new Date().getMonth(),currentType:'receita'};
 let reportPeriod='7d';
+let reportGroup='meses';
+
+function setGroup(g, btn){
+  reportGroup=g;
+  document.querySelectorAll('#groupTabs .filter-chip').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  renderRelatorio();
+}
 
 function setPeriod(period, btn){
   reportPeriod=period;
@@ -776,29 +813,44 @@ function setPeriod(period, btn){
 
 function getPeriodDates(){
   const now=new Date();
-  let start, end=new Date();
+  let start, end=new Date(now.getFullYear(),now.getMonth(),now.getDate(),23,59,59);
   if(reportPeriod==='7d'){
-    start=new Date(); start.setDate(start.getDate()-6);
+    // Segunda-feira desta semana
+    const day=now.getDay(); // 0=dom, 1=seg...
+    const diff=day===0?-6:1-day; // volta pra segunda
+    start=new Date(now); start.setDate(now.getDate()+diff); start.setHours(0,0,0,0);
+    // Domingo desta semana
+    end=new Date(start); end.setDate(start.getDate()+6); end.setHours(23,59,59,999);
   } else if(reportPeriod==='30d'){
-    start=new Date(); start.setDate(start.getDate()-29);
+    // Este mês completo
+    start=new Date(now.getFullYear(),now.getMonth(),1,0,0,0,0);
+    end=new Date(now.getFullYear(),now.getMonth()+1,0,23,59,59,999);
   } else if(reportPeriod==='3m'){
-    start=new Date(); start.setMonth(start.getMonth()-3);
+    // Últimos 3 meses completos
+    const m=now.getMonth();
+    const y=now.getFullYear();
+    start=new Date(y, m-2, 1, 0,0,0,0);
+    end=new Date(y, m+1, 0, 23,59,59,999);
   } else if(reportPeriod==='6m'){
-    start=new Date(); start.setMonth(start.getMonth()-6);
+    // Últimos 6 meses completos
+    const m=now.getMonth();
+    const y=now.getFullYear();
+    start=new Date(y, m-5, 1, 0,0,0,0);
+    end=new Date(y, m+1, 0, 23,59,59,999);
   } else if(reportPeriod==='1y'){
-    start=new Date(now.getFullYear(),0,1);
-    end=new Date(now.getFullYear(),11,31);
+    start=new Date(now.getFullYear(),0,1,0,0,0,0);
+    end=new Date(now.getFullYear(),11,31,23,59,59,999);
   } else if(reportPeriod==='custom'){
     const s=document.getElementById('reportDateStart')?.value;
     const e=document.getElementById('reportDateEnd')?.value;
-    start=s?new Date(s+'T00:00:00'):new Date();
+    start=s?new Date(s+'T00:00:00'):new Date(now.getFullYear(),0,1);
     end=e?new Date(e+'T23:59:59'):new Date();
   }
   return {start, end};
 }
 
 function getPeriodLabel(){
-  const labels={'7d':'Últimos 7 dias','30d':'Últimos 30 dias','3m':'Últimos 3 meses','6m':'Últimos 6 meses','1y':'Este ano'};
+  const labels={'7d':'Esta semana','30d':'Este mês','3m':'Últimos 3 meses','6m':'Últimos 6 meses','1y':'Este ano'};
   if(reportPeriod==='custom'){
     const s=document.getElementById('reportDateStart')?.value;
     const e=document.getElementById('reportDateEnd')?.value;
@@ -1043,58 +1095,119 @@ function renderRelatorio(){
   const txs=getTxInPeriod();
   const {start,end}=getPeriodDates();
 
-  // Group by month for chart
-  const monthMap={};
-  txs.forEach(t=>{
-    const d=new Date(t.date+'T12:00:00');
-    const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-    if(!monthMap[key])monthMap[key]={label:shortMonth(d.getMonth())+'/'+String(d.getFullYear()).slice(2),receitas:0,despesas:0};
-    if(t.type==='receita')monthMap[key].receitas+=t.amount;
-    else if(t.type==='despesa_fixa'||t.type==='despesa_variavel')monthMap[key].despesas+=t.amount;
-  });
-
-  // For 7d/30d group by day instead
+  // Build chart data based on period and grouping
   let chartData=[];
-  if(reportPeriod==='7d'||reportPeriod==='30d'){
-    const dayMap={};
-    const days=reportPeriod==='7d'?7:30;
-    for(let i=days-1;i>=0;i--){
-      const d=new Date(); d.setDate(d.getDate()-i);
-      const key=d.toISOString().split('T')[0];
-      const lbl=`${d.getDate()}/${d.getMonth()+1}`;
-      dayMap[key]={label:lbl,receitas:0,despesas:0};
+  const {start:cs,end:ce}=getPeriodDates();
+
+  function buildMonthBars(startDate, endDate){
+    const map={};
+    let cur=new Date(startDate.getFullYear(),startDate.getMonth(),1);
+    while(cur<=endDate){
+      const key=`${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,'0')}`;
+      map[key]={label:shortMonth(cur.getMonth())+'/'+String(cur.getFullYear()).slice(2),receitas:0,despesas:0};
+      cur.setMonth(cur.getMonth()+1);
     }
     txs.forEach(t=>{
-      if(dayMap[t.date]){
-        if(t.type==='receita')dayMap[t.date].receitas+=t.amount;
-        else if(t.type==='despesa_fixa'||t.type==='despesa_variavel')dayMap[t.date].despesas+=t.amount;
+      const d=new Date(t.date+'T12:00:00');
+      const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      if(map[key]){
+        if(t.type==='receita')map[key].receitas+=t.amount;
+        else if(t.type==='despesa_fixa'||t.type==='despesa_variavel')map[key].despesas+=t.amount;
       }
     });
-    chartData=Object.values(dayMap);
-  } else {
-    chartData=Object.keys(monthMap).sort().map(k=>monthMap[k]);
+    return Object.keys(map).sort().map(k=>map[k]);
+  }
+
+  function buildDayBars(startDate, endDate){
+    const map={};
+    let cur=new Date(startDate); cur.setHours(0,0,0,0);
+    while(cur<=endDate){
+      const key=cur.toISOString().split('T')[0];
+      map[key]={label:`${cur.getDate()}/${cur.getMonth()+1}`,receitas:0,despesas:0};
+      cur.setDate(cur.getDate()+1);
+    }
+    txs.forEach(t=>{
+      if(map[t.date]){
+        if(t.type==='receita')map[t.date].receitas+=t.amount;
+        else if(t.type==='despesa_fixa'||t.type==='despesa_variavel')map[t.date].despesas+=t.amount;
+      }
+    });
+    return Object.values(map).filter(d=>d.receitas>0||d.despesas>0);
+  }
+
+  function buildWeekBars(startDate, endDate){
+    const map={};
+    let cur=new Date(startDate); cur.setHours(0,0,0,0);
+    txs.forEach(t=>{
+      const d=new Date(t.date+'T12:00:00');
+      if(d<startDate||d>endDate) return;
+      // Week number within period
+      const diffDays=Math.floor((d-startDate)/(1000*60*60*24));
+      const wk=Math.floor(diffDays/7);
+      if(!map[wk]){
+        const ws=new Date(startDate); ws.setDate(ws.getDate()+wk*7);
+        const we=new Date(ws); we.setDate(we.getDate()+6);
+        map[wk]={label:`${ws.getDate()}/${ws.getMonth()+1}`,receitas:0,despesas:0};
+      }
+      if(t.type==='receita')map[wk].receitas+=t.amount;
+      else if(t.type==='despesa_fixa'||t.type==='despesa_variavel')map[wk].despesas+=t.amount;
+    });
+    return Object.keys(map).sort((a,b)=>a-b).map(k=>map[k]);
+  }
+
+  if(reportPeriod==='7d'){
+    // Sempre 7 barras seg-dom, mesmo sem movimento
+    const dayNames=['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+    const map={};
+    for(let i=0;i<7;i++){
+      const d=new Date(cs); d.setDate(cs.getDate()+i);
+      const key=d.toISOString().split('T')[0];
+      map[key]={label:dayNames[i],receitas:0,despesas:0};
+    }
+    txs.forEach(t=>{
+      if(map[t.date]){
+        if(t.type==='receita')map[t.date].receitas+=t.amount;
+        else if(t.type==='despesa_fixa'||t.type==='despesa_variavel')map[t.date].despesas+=t.amount;
+      }
+    });
+    chartData=Object.values(map);
+  } else if(reportPeriod==='30d'){
+    // Este mês — barras finas por dia, remove dias sem movimento
+    chartData=buildDayBars(cs,ce).filter(d=>d.receitas>0||d.despesas>0);
+    if(!chartData.length) chartData=buildDayBars(cs,ce);
+  } else if(reportPeriod==='3m'||reportPeriod==='6m'||reportPeriod==='1y'){
+    chartData=buildMonthBars(cs,ce);
+  } else if(reportPeriod==='custom'){
+    const group=reportGroup||'meses';
+    if(group==='dias') chartData=buildDayBars(cs,ce);
+    else if(group==='semanas') chartData=buildWeekBars(cs,ce);
+    else chartData=buildMonthBars(cs,ce);
   }
 
   // Render chart
-  const maxVal=Math.max(...chartData.map(d=>Math.max(d.receitas,d.despesas)),1);
   const barsEl=document.getElementById('chartBars');
   if(!chartData.length){
     barsEl.innerHTML='<div class="empty" style="width:100%;"><div class="empty-icon">📊</div><p>Sem dados neste período</p></div>';
   } else {
-    // Show max 12 bars, min 4 (pad with empty if less)
-    let show=chartData.length>12?chartData.slice(-12):chartData;
-    // Pad to minimum 6 bars for better visual
-    while(show.length < 6){show = [{label:'',receitas:0,despesas:0},...show];}
+    const show=chartData.length>12?chartData.slice(-12):chartData;
+    const maxVal=Math.max(...show.map(d=>Math.max(d.receitas,d.despesas)),1);
+    const chartH=160;
+    const showLabel=show.length<=14;
     barsEl.innerHTML=show.map(d=>{
-      const ih=d.receitas>0?Math.max(4,((d.receitas/maxVal)*100).toFixed(0)):0;
-      const eh=d.despesas>0?Math.max(4,((d.despesas/maxVal)*100).toFixed(0)):0;
-      const isEmpty=d.receitas===0&&d.despesas===0&&d.label==='';
-      return`<div class="chart-bar-group" style="opacity:${isEmpty?'0':'1'}">
+      const ih=d.receitas>0?Math.max(2,Math.round((d.receitas/maxVal)*chartH)):0;
+      const eh=d.despesas>0?Math.max(2,Math.round((d.despesas/maxVal)*chartH)):0;
+      const hasData=d.receitas>0||d.despesas>0;
+      return`<div class="chart-bar-group">
+        ${hasData?`<div class="chart-tooltip">
+          <div class="chart-tooltip-label">${d.label}</div>
+          ${d.receitas>0?`<div class="chart-tooltip-row"><div class="chart-tooltip-dot" style="background:#22c55e"></div><span style="color:var(--text2)">Rec:</span><span style="color:#22c55e">${fmt(d.receitas)}</span></div>`:''}
+          ${d.despesas>0?`<div class="chart-tooltip-row"><div class="chart-tooltip-dot" style="background:#ef4444"></div><span style="color:var(--text2)">Desp:</span><span style="color:#ef4444">${fmt(d.despesas)}</span></div>`:''}
+        </div>`:''}
         <div class="chart-bars-inner">
-          <div class="chart-bar income" style="height:${ih}%"></div>
-          <div class="chart-bar expense" style="height:${eh}%"></div>
+          <div class="chart-bar income" style="height:${ih}px"></div>
+          <div class="chart-bar expense" style="height:${eh}px"></div>
         </div>
-        <div class="chart-month-label">${d.label}</div>
+        ${showLabel?`<div class="chart-month-label">${d.label}</div>`:''}
       </div>`;
     }).join('');
   }
